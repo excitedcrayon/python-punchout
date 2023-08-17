@@ -14,7 +14,7 @@ class Punchout(Tk):
         self.punchout_environment_value = None
 
         self.window_width = 500
-        self.window_height = 800
+        self.window_height = 750
 
         self.widget_width = 50
         self.widget_height = 50
