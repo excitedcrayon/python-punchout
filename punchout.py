@@ -1,8 +1,9 @@
 #!usr/bin/python
 
-from tkinter import *
+from tkinter import Tk, Frame, Label, Text, Button, Entry
 from tkinter import ttk
 import requests
+import re
 import xml.etree.ElementTree as ET
 
 
@@ -21,7 +22,7 @@ class Punchout(Tk):
         self.widget_y_padding = 20
 
         self.widget_font = {"font": ("Calibri", 12)}
-        self.widget_text_font = {"font": ("Calibri", 9)}
+        self.widget_text_font = {"font": ("Calibri", 10)}
 
         self.punchout_select_options = ["", "Local", "S1 Test", "P1 Prod"]
 
@@ -167,19 +168,13 @@ class Punchout(Tk):
         xml_data = string_xml_data.encode("UTF-8")
         headers = {"Content-Type": "application/xml"}
 
-        # check is input values from GUI are empty
-        print(type(environment))
-        print(len(environment))
-        print(environment)
-        print(environment is None)
-
         if (
             environment != "Local"
             or environment != "S1 Test"
             or environment != "P1 Prod"
         ):
             self.punchout_session_text.insert(
-                "1.0", f"[Error] Please select environment!\n\n"
+                "1.0", "[Error] Please select environment!"
             )
         if (
             environment == "Local"
@@ -188,6 +183,7 @@ class Punchout(Tk):
         ):
             # send the data as bytes
             response = requests.post(url_link, headers=headers, data=xml_data).text
+            status_code = self.get_status_code_from_response(response)
 
             # populate session output Text widget
             self.punchout_session_text.delete("1.0", "end")
@@ -196,23 +192,10 @@ class Punchout(Tk):
                 "2.0", "[Process] Requesting Punchout Session Link...........\n\n"
             )
             self.punchout_session_text.insert("3.0", "\n")
-            self.punchout_session_text.insert("5.0", "[Response]\n\n" + str(response))
-
-        """
-        # send the data as bytes
-        response = requests.post(url_link, headers=headers, data=xml_data).text
-
-        # populate session output Text widget
-        self.punchout_session_text.insert("1.0", f"Link: {url_link}\n\n")
-        self.punchout_session_text.insert(
-            "2.0", "Requesting Punchout Session Link\n...........\n\n"
-        )
-        self.punchout_session_text.insert("3.0", "\n\n")
-        self.punchout_session_text.insert("5.0", str(response))
-        """
+            self.punchout_session_text.insert("5.0", "[Response]\n" + str(response))
 
     def clear_session(self):
-        pass
+        self.punchout_session_text.delete("1.0", "end")
 
     def close_window(self):
         self.destroy()
@@ -288,7 +271,6 @@ class Punchout(Tk):
         """
 
     def set_environment_value(self, environment_value):
-        print(len(environment_value))
         self.punchout_environment_value = environment_value
 
     def get_environmental_value(self) -> str:
@@ -299,6 +281,13 @@ class Punchout(Tk):
 
     def get_shared_secret(self) -> str:
         return str(self.punchout_sharedsecret_entry.get())
+
+    def get_status_code_from_response(self, response) -> str:
+        convert_from_string = ET.fromstring(response)
+        convert_to_bytes = ET.tostring(convert_from_string)
+        string_from_bytes = convert_to_bytes.decode("UTF-8")
+        print(type(string_from_bytes))
+        print(string_from_bytes)
 
 
 if __name__ == "__main__":
