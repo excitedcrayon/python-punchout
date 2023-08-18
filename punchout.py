@@ -1,9 +1,10 @@
 #!usr/bin/python
 
-from tkinter import Tk, Frame, Label, Text, Button, Entry
+from tkinter import Tk, Frame, Label, Text, Button, Entry, messagebox
 from tkinter import ttk
 import requests
 import re
+import pyperclip
 import xml.etree.ElementTree as ET
 
 
@@ -13,22 +14,29 @@ class Punchout(Tk):
 
         self.punchout_environment_value = None
 
-        self.window_width = 500
+        self.window_width = 700
         self.window_height = 750
 
-        self.widget_width = 50
+        self.widget_width = 80
         self.widget_height = 50
+        self.widget_button_width = 20
+        self.widget_text_height = 5
 
+        self.widget_x_padding = 20
         self.widget_y_padding = 20
 
         self.widget_font = {"font": ("Calibri", 12)}
         self.widget_text_font = {"font": ("Calibri", 10)}
 
-        self.punchout_select_options = ["", "Local", "S1 Test", "P1 Prod"]
+        self.punchout_select_options = ["", "Local", "S1 UAT/TEST", "P1 Production"]
 
-        self.punchout_local_link = "https://cnw.local:9002/punchout/cxml/setup?site=cnw"
-        self.punchout_p1_link = "https://shop.cnw.com.au/punchout/cxml/setup?site=cnw"
-        self.punchout_s1_link = "https://cnw.c94gvn2mno-cnwsub3-s1-public.model-t.cc.commerce.ondemand.com/punchout/cxml/setup?site=cnw"
+        self.punchout_links = {
+            "Local": "https://cnw.local:9002/punchout/cxml/setup?site=cnw",
+            "S1 UAT/TEST": "https://cnw.c94gvn2mno-cnwsub3-s1-public.model-t.cc.commerce.ondemand.com/punchout/cxml/setup?site=cnw",
+            "P1 Production": "https://shop.cnw.com.au/punchout/cxml/setup?site=cnw",
+        }
+
+        self.session_link = None
 
         self.title("Punchout Session")
         self.resizable(False, False)
@@ -54,7 +62,9 @@ class Punchout(Tk):
         # Punchout Label
         self.punchout_label = Label(
             self.topFrame,
+            width=self.widget_width,
             text="Punchout Environment *",
+            anchor="w",
             **self.widget_font,
         )
         self.punchout_label.pack()
@@ -81,8 +91,9 @@ class Punchout(Tk):
         # Identity Label
         self.punchout_identity_label = Label(
             self.middleFrame,
-            text="Identity *",
             width=self.widget_width,
+            text="Identity *",
+            anchor="w",
             **self.widget_font,
         )
 
@@ -96,12 +107,13 @@ class Punchout(Tk):
             row=1, column=0, pady=self.widget_y_padding / 4
         )
         self.punchout_identity_value = self.punchout_identity_entry.get()
-        print(self.punchout_identity_entry.get())
 
         # Shared Secret Label
         self.punchout_sharedsecret_label = Label(
             self.middleFrame,
+            width=self.widget_width,
             text="Shared Secret *",
+            anchor="w",
             **self.widget_font,
         )
         self.punchout_sharedsecret_label.grid(row=2, column=0)
@@ -114,22 +126,49 @@ class Punchout(Tk):
             row=3, column=0, pady=self.widget_y_padding / 4
         )
 
-        # Session Link Label
-        self.punchout_session_label = Label(
-            self.middleFrame, text="Session Link", **self.widget_font
+        # Output Data Label
+        self.punchout_output_data_label = Label(
+            self.middleFrame,
+            width=self.widget_width,
+            text="Output Data",
+            anchor="w",
+            **self.widget_font,
         )
-        self.punchout_session_label.grid(row=4, column=0, pady=self.widget_y_padding)
+        self.punchout_output_data_label.grid(
+            row=4, column=0, pady=self.widget_y_padding
+        )
+
+        # Output Data Textbox
+        self.punchout_output_data_text = Text(
+            self.middleFrame,
+            width=self.widget_width,
+            height=self.widget_text_height,
+            pady=self.widget_y_padding,
+            bg="#eee",
+            fg="black",
+        )
+        self.punchout_output_data_text.grid(row=5, column=0)
+
+        # Session Data Label
+        self.punchout_session_label = Label(
+            self.middleFrame,
+            width=self.widget_width,
+            text="Session Data",
+            anchor="w",
+            **self.widget_font,
+        )
+        self.punchout_session_label.grid(row=6, column=0, pady=self.widget_y_padding)
 
         # Session Link Textbox
         self.punchout_session_text = Text(
             self.middleFrame,
             width=self.widget_width,
-            height=20,
+            height=self.widget_text_height,
             pady=self.widget_y_padding,
-            bg="black",
+            bg="#222",
             fg="white",
         )
-        self.punchout_session_text.grid(row=5, column=0)
+        self.punchout_session_text.grid(row=7, column=0)
 
         self.middleFrame.pack()
 
@@ -137,22 +176,50 @@ class Punchout(Tk):
         # Generate Button
         self.generate_button = Button(
             self.bottomFrame,
+            width=self.widget_button_width,
             text="Generate Session Link",
             command=self.generate_session_link,
+            **self.widget_font,
         )
-        self.generate_button.grid(row=0, column=0, pady=self.widget_y_padding)
+        self.generate_button.grid(
+            row=0, column=0, padx=self.widget_x_padding, pady=self.widget_y_padding
+        )
+
+        # Output Data Button
+        self.punchout_output_copy_button = Button(
+            self.bottomFrame,
+            width=self.widget_button_width,
+            text="Copy Session Link",
+            command=self.copy_session_link,
+            **self.widget_font,
+        )
+        self.punchout_output_copy_button.grid(
+            row=0, column=1, padx=self.widget_x_padding, pady=self.widget_y_padding
+        )
 
         # Clear Textbox Button
         self.clear_text_box = Button(
             self.bottomFrame,
+            width=self.widget_button_width,
             text="Clear Session",
-            command=self.clear_session,
+            command=self.clear_textbox,
+            **self.widget_font,
         )
-        self.clear_text_box.grid(row=0, column=1, pady=self.widget_y_padding)
+        self.clear_text_box.grid(
+            row=1, column=0, padx=self.widget_x_padding, pady=self.widget_y_padding
+        )
 
         # Close Button
-        self.exit = Button(self.bottomFrame, text="Exit", command=self.close_window)
-        self.exit.grid(row=0, column=2, pady=self.widget_y_padding)
+        self.exit = Button(
+            self.bottomFrame,
+            width=self.widget_button_width,
+            text="Exit",
+            command=self.close_window,
+            **self.widget_font,
+        )
+        self.exit.grid(
+            row=1, column=1, padx=self.widget_x_padding, pady=self.widget_y_padding
+        )
 
         self.bottomFrame.pack()
 
@@ -168,50 +235,75 @@ class Punchout(Tk):
         xml_data = string_xml_data.encode("UTF-8")
         headers = {"Content-Type": "application/xml"}
 
-        if (
-            environment != "Local"
-            or environment != "S1 Test"
-            or environment != "P1 Prod"
-        ):
-            self.punchout_session_text.insert(
-                "1.0", "[Error] Please select environment!"
-            )
-        if (
-            environment == "Local"
-            or environment == "S1 Test"
-            or environment == "P1 Prod"
-        ):
-            # send the data as bytes
-            response = requests.post(url_link, headers=headers, data=xml_data).text
-            status_code = self.get_status_code_from_response(response)
+        #  clear text boxes to render new information
+        self.clear_textbox()
 
-            # populate session output Text widget
-            self.punchout_session_text.delete("1.0", "end")
-            self.punchout_session_text.insert("1.0", f"[Link] {url_link}\n\n")
-            self.punchout_session_text.insert(
-                "2.0", "[Process] Requesting Punchout Session Link...........\n\n"
-            )
-            self.punchout_session_text.insert("3.0", "\n")
-            self.punchout_session_text.insert("5.0", "[Response]\n" + str(response))
+        if (
+            environment != self.punchout_select_options[1]
+            or environment != self.punchout_select_options[2]
+            or environment != self.punchout_select_options[3]
+        ):
+            # messagebox.showerror(title="Error", message="Please select an environment")
+            pass
+        if (
+            environment == self.punchout_select_options[1]
+            or environment == self.punchout_select_options[2]
+            or environment == self.punchout_select_options[3]
+        ):
+            try:
+                # send the data as bytes
+                response = requests.post(url_link, headers=headers, data=xml_data).text
+                response_data = self.get_response_data(response)
 
-    def clear_session(self):
+                # populate session output Text widget
+                self.punchout_session_text.insert("1.0", "[Link]\n")
+                self.punchout_session_text.insert("2.0", f"{url_link}\n")
+                self.punchout_session_text.insert("3.0", "\n\n")
+                self.punchout_session_text.insert("4.0", "[Process]\n")
+                self.punchout_session_text.insert(
+                    "5.0", "Requesting Punchout Session Link...........\n"
+                )
+                self.punchout_session_text.insert("6.0", "\n\n")
+                self.punchout_session_text.insert("7.0", "[Response]\n")
+                self.punchout_session_text.insert("8.0", f"{str(response)}\n")
+                self.punchout_session_text.insert("9.0", "\n\n")
+
+                if len(response_data["status_code"]) > 0:
+                    self.punchout_output_data_text.insert(
+                        "1.0", f"[Status] - {response_data['status_code']}\n"
+                    )
+                    if (
+                        response_data["status_code"] == "500"
+                        or response_data["status_code"] == "401"
+                    ):
+                        self.punchout_output_data_text.config(fg="#c00")
+                    elif response_data["status_code"] == "200":
+                        self.punchout_output_data_text.config(fg="green")
+
+                if len(response_data["text"]) > 0:
+                    self.punchout_output_data_text.insert(
+                        "2.0", f"[Text] - {response_data['text']}\n"
+                    )
+
+                if len(response_data["session_url"]) > 0:
+                    self.punchout_output_data_text.insert("3.0", "[Session URL]\n")
+                    self.punchout_output_data_text.insert(
+                        "4.0", f"{response_data['session_url']}\n"
+                    )
+                    self.session_link = response_data["session_url"]
+            except requests.exceptions.RequestException as e:
+                self.punchout_session_text.insert("1.0", f"{e}\n")
+
+    def clear_textbox(self):
         self.punchout_session_text.delete("1.0", "end")
+        self.punchout_output_data_text.delete("1.0", "end")
 
     def close_window(self):
         self.destroy()
 
     def api_post_link(self, option_value) -> str:
-        post_link = ""
-        match option_value:
-            case "Local":
-                post_link = self.punchout_local_link
-            case "S1 Test":
-                post_link = self.punchout_s1_link
-            case "P1 Prod":
-                post_link = self.punchout_p1_link
-            case _:
-                """"""
-        return post_link
+        if option_value in self.punchout_select_options:
+            return self.punchout_links[option_value]
 
     def xml_string_raw_data(self, identity, shared_secret) -> str:
         return f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -282,12 +374,41 @@ class Punchout(Tk):
     def get_shared_secret(self) -> str:
         return str(self.punchout_sharedsecret_entry.get())
 
-    def get_status_code_from_response(self, response) -> str:
+    def get_response_data(self, response) -> dict:
+        response_dict = {}
+
         convert_from_string = ET.fromstring(response)
         convert_to_bytes = ET.tostring(convert_from_string)
         string_from_bytes = convert_to_bytes.decode("UTF-8")
-        print(type(string_from_bytes))
-        print(string_from_bytes)
+
+        status_match = re.search(
+            r'<Status code="(\d+)" text="([^"]+)"', string_from_bytes
+        )
+
+        try:
+            if status_match:
+                status_code = status_match.group(1)
+                status_text = status_match.group(2)
+                response_dict.update(
+                    {"status_code": status_code, "text": status_text, "session_url": ""}
+                )
+
+            url_match = re.search(r"<URL>([^<]+)</URL>", string_from_bytes)
+            if url_match:
+                url = url_match.group(1)
+                response_dict.update({"session_url": url})
+        except KeyError as e:
+            messagebox.showerror(title="Response Data Exception", message=f"{e}\n")
+
+        return response_dict
+
+    def copy_session_link(self):
+        if self.session_link is not None:
+            pyperclip.copy(self.session_link)
+            messagebox.showinfo(
+                title="Session Link Copied",
+                message="The session link has been copied. Paste it in your browser to start using the Punchout session",
+            )
 
 
 if __name__ == "__main__":
