@@ -30,4 +30,7 @@ The Punchout program uses the following tools
 
   <img src="images/image-four.png">
 
+### Accessing Session From Browser
+
+<img src="images/image-five.png">
 This program was written by myself during my time at BGW Group to make use of a semi-automated process in creating Punchout2Go sessions for customers using cXML
