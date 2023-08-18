@@ -1,2 +1,19 @@
 # python-punchout
+
 Generate Punchout Session
+
+## Basic Demonstration Of Program
+
+- Starting up the program
+  <img src="images/image-one.png">
+
+- Using wrong credentials for obtaining a session
+  <img src="images/image-two.png">
+
+- Using correct credentials for obtaining a session
+  <img src="images/image-three.png">
+
+- Dialog messagebox when 'Copy Session Link' button is clicked
+  <img src="images/image-four.png">
+
+This program was written by myself during my time at BGW Group to make use of a semi-automated process in creating Punchout2Go sessions for customers using cXML
